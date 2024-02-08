@@ -1,4 +1,4 @@
-from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
 import torch
 import numpy as np
 
@@ -117,12 +117,15 @@ def torch_dice_coef_loss(y_true,y_pred, smooth=1.):
     intersection = torch.sum(y_true_f * y_pred_f)
     return 1. - ((2. * intersection + smooth) / (torch.sum(y_true_f) + torch.sum(y_pred_f) + smooth))
 
-def torch_dice_coef_loss(y_true,y_pred, smooth=1.):
-    y_true_f = torch.flatten(y_true)
-    y_pred_f = torch.flatten(y_pred)
-    intersection = torch.sum(y_true_f * y_pred_f)
-    return 1. - ((2. * intersection + smooth) / (torch.sum(y_true_f) + torch.sum(y_pred_f) + smooth))
+def step_decay(step, lr, epochs):
 
+    progress = (step - 20) / float(epochs - 20)
+    progress = np.clip(progress, 0.0, 1.0)
+    lr = lr * 0.5 * (1. + np.cos(np.pi * progress))
+
+    lr = lr * np.minimum(1., step / 20)
+
+    return lr
 
 def cosine_anneal_schedule(t,epochs,learning_rate):
     T=epochs
@@ -155,3 +158,92 @@ def mean_dice_coef(y_true,y_pred):
     for i in range (y_true.shape[0]):
         sum += dice(y_true[i,:,:,:],y_pred[i,:,:,:])
     return sum/y_true.shape[0]
+
+def print_metrics(y_test, pred, dataset):
+    if dataset == "COVIDx":
+        mapping = {
+            'normal': 0,
+            'pneumonia': 1,
+            'COVID-19': 2
+        }
+    else:
+        mapping = {
+            'Normal': 0,
+            'No Lung Opacity/Not Normal': 1,
+            'Lung Opacity': 2
+        }
+    matrix = confusion_matrix(y_test, pred)
+    matrix = matrix.astype('float')
+    print(matrix)
+
+    class_acc = [matrix[i,i]/np.sum(matrix[i,:]) if np.sum(matrix[i,:]) else 0 for i in range(len(matrix))]
+    ppvs = [matrix[i,i]/np.sum(matrix[:,i]) if np.sum(matrix[:,i]) else 0 for i in range(len(matrix))]
+
+    print('Sens', ', '.join('{}: {:.3f}'.format(cls.capitalize(), class_acc[i]) for cls, i in mapping.items()))
+    print('PPV', ', '.join('{}: {:.3f}'.format(cls.capitalize(), ppvs[i]) for cls, i in mapping.items()))
+
+
+def load_swin_pretrained(ckpt, model):
+    state_dict = ckpt
+    # delete relative_position_index since we always re-init it
+    relative_position_index_keys = [k for k in state_dict.keys() if "relative_position_index" in k]
+    for k in relative_position_index_keys:
+        del state_dict[k]
+
+    # delete relative_coords_table since we always re-init it
+    relative_position_index_keys = [k for k in state_dict.keys() if "relative_coords_table" in k]
+    for k in relative_position_index_keys:
+        del state_dict[k]
+
+    # delete attn_mask since we always re-init it
+    attn_mask_keys = [k for k in state_dict.keys() if "attn_mask" in k]
+    for k in attn_mask_keys:
+        del state_dict[k]
+
+    # bicubic interpolate relative_position_bias_table if not match
+    relative_position_bias_table_keys = [k for k in state_dict.keys() if "relative_position_bias_table" in k]
+    for k in relative_position_bias_table_keys:
+        relative_position_bias_table_pretrained = state_dict[k]
+        relative_position_bias_table_current = model.state_dict()[k]
+        L1, nH1 = relative_position_bias_table_pretrained.size()
+        L2, nH2 = relative_position_bias_table_current.size()
+        if nH1 != nH2:
+            print(f"Error in loading {k}, passing......")
+        else:
+            if L1 != L2:
+                # bicubic interpolate relative_position_bias_table if not match
+                S1 = int(L1 ** 0.5)
+                S2 = int(L2 ** 0.5)
+                relative_position_bias_table_pretrained_resized = torch.nn.functional.interpolate(
+                    relative_position_bias_table_pretrained.permute(1, 0).view(1, nH1, S1, S1), size=(S2, S2),
+                    mode='bicubic')
+                state_dict[k] = relative_position_bias_table_pretrained_resized.view(nH2, L2).permute(1, 0)
+
+    # bicubic interpolate absolute_pos_embed if not match
+    absolute_pos_embed_keys = [k for k in state_dict.keys() if "absolute_pos_embed" in k]
+    for k in absolute_pos_embed_keys:
+        # dpe
+        absolute_pos_embed_pretrained = state_dict[k]
+        absolute_pos_embed_current = model.state_dict()[k]
+        _, L1, C1 = absolute_pos_embed_pretrained.size()
+        _, L2, C2 = absolute_pos_embed_current.size()
+        if C1 != C1:
+            print(f"Error in loading {k}, passing......", file=writter)
+        else:
+            if L1 != L2:
+                S1 = int(L1 ** 0.5)
+                S2 = int(L2 ** 0.5)
+                absolute_pos_embed_pretrained = absolute_pos_embed_pretrained.reshape(-1, S1, S1, C1)
+                absolute_pos_embed_pretrained = absolute_pos_embed_pretrained.permute(0, 3, 1, 2)
+                absolute_pos_embed_pretrained_resized = torch.nn.functional.interpolate(
+                    absolute_pos_embed_pretrained, size=(S2, S2), mode='bicubic')
+                absolute_pos_embed_pretrained_resized = absolute_pos_embed_pretrained_resized.permute(0, 2, 3, 1)
+                absolute_pos_embed_pretrained_resized = absolute_pos_embed_pretrained_resized.flatten(1, 2)
+                state_dict[k] = absolute_pos_embed_pretrained_resized
+
+
+    msg = model.load_state_dict(state_dict, strict=False)
+    print(msg)
+
+    del ckpt
+    torch.cuda.empty_cache()
