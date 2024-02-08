@@ -13,6 +13,8 @@ from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_, PatchEmbed
 from functools import partial
 import simmim
+from upernet_swin_transformer import UperNet_swin
+from utils import load_swin_pretrained
 
 def build_classification_model(args):
     model = None
@@ -169,4 +171,36 @@ def save_checkpoint(state,filename='model'):
 
     torch.save( state,filename + '.pth.tar')
 
+def build_segmentation_model(args):
+    if args.arch == "upernet_swin":
+        model = UperNet_swin(img_size=224, num_classes=args.num_class)
 
+    if args.pretrained_weights is not None:
+        # if args.pretrained_weights.startswith('https'):
+        #     state_dict = load_state_dict_from_url(url=args.pretrained_weights, map_location='cpu')
+        # else:
+        #     state_dict = load_state_dict(args.pretrained_weights)
+        checkpoint = torch.load(args.pretrained_weights, map_location='cpu')
+        if args.init == "ark":
+            state_dict = checkpoint
+            
+        if 'state_dict' in checkpoint:
+            print("Loading {} from checkpoint...".format(args.key))
+            state_dict = checkpoint[args.key]
+        elif 'model' in checkpoint:
+            state_dict = checkpoint['model']
+
+        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items() }
+        state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items() }
+        state_dict = {k.replace("encoder.", ""): v for k, v in state_dict.items() }
+        for k in ['head.weight', 'head.bias', 'head_dist.weight', 'head_dist.bias']:
+            if k in state_dict:
+                print(f"Removing key {k} from pretrained checkpoint")
+                del state_dict[k]
+
+        load_swin_pretrained(state_dict, model.backbone)
+            
+        # msg = model.load_state_dict(state_dict, strict=False)
+        # print('Loaded with msg: {}'.format(msg))
+
+    return model

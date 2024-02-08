@@ -364,3 +364,258 @@ class RSNAPneumonia(Dataset):
 
     return len(self.img_list)
 
+# ---------------------------------------------Downstream Segmentation------------------------------------------
+
+class Montgomery(Dataset):
+
+    def __init__(self, images_path, file_path, augment, image_size=(224,224), anno_percent=100, normalization=None):
+        self.augmentation = augment
+
+        self.img_list = []
+        self.img_label = []
+        self.image_size = image_size
+        self.normalization = normalization
+
+        with open(file_path, "r") as fileDescriptor:
+            line = fileDescriptor.readline().strip()
+            while line:
+                self.img_list.append(os.path.join(images_path + "/CXR_png", line))
+                self.img_label.append(
+                    (os.path.join(images_path+"/ManualMask/leftMask", line),(os.path.join(images_path+"/ManualMask/rightMask", line)))
+                      )
+                line = fileDescriptor.readline().strip()
+        
+        indexes = np.arange(len(self.img_list))
+        if anno_percent < 100:
+            random.Random(99).shuffle(indexes)
+            num_data = int(indexes.shape[0] * anno_percent / 100.0)
+            indexes = indexes[:num_data]
+            _img_list= copy.deepcopy(self.img_list)
+            _img_label= copy.deepcopy(self.img_label)
+            self.img_list = []
+            self.img_label = []
+            for i in indexes:
+                self.img_list.append(_img_list[i])
+                self.img_label.append(_img_label[i])
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, idx):
+        imagePath = self.img_list[idx]
+        maskPath = self.img_label[idx]
+
+        image = cv2.resize(cv2.imread(imagePath,cv2.IMREAD_COLOR),self.image_size, interpolation=cv2.INTER_AREA)
+        leftMaskData = cv2.resize(cv2.imread(maskPath[0],cv2.IMREAD_GRAYSCALE), self.image_size, interpolation=cv2.INTER_AREA)
+        rightMaskData = cv2.resize(cv2.imread(maskPath[1],cv2.IMREAD_GRAYSCALE), self.image_size, interpolation=cv2.INTER_AREA)
+        
+        mask = leftMaskData + rightMaskData
+        mask[mask > 0] = 255
+  
+        if self.augmentation:
+                augmented = self.augmentation(image=image, mask=mask)
+                image=augmented['image']
+                mask=augmented['mask']
+                image=np.array(image) / 255.
+                mask=np.array(mask) / 255.
+        else:
+            image = np.array(image) / 255.
+            mask = np.array(mask) / 255.
+        if self.normalization == "imagenet":
+            mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+            image = (image-mean)/std
+
+        # mask = np.array(mask) / 255.
+        # image = np.array(image) / 255.
+        # mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+        # image = (image-mean)/std
+
+        image = image.transpose(2, 0, 1).astype('float32')
+        mask = np.expand_dims(mask,axis=0).astype('uint8')
+        return image, mask
+
+
+class JSRTLung(Dataset):
+
+    def __init__(self, images_path, file_path, augment, image_size=(224,224), anno_percent=100, normalization=None):
+        self.augmentation = augment
+
+        self.img_list = []
+        self.img_label = []
+        self.image_size = image_size
+        self.normalization = normalization
+
+        with open(file_path, "r") as fileDescriptor:
+            line = fileDescriptor.readline().strip()
+            while line:
+                self.img_list.append(os.path.join(images_path + "/images", line+".IMG.png"))
+                self.img_label.append(
+                    (os.path.join(images_path+"/masks/left_lung_png", line+".png"),(os.path.join(images_path+"/masks/right_lung_png", line+".png")))
+                      )
+                line = fileDescriptor.readline().strip()
+        
+        indexes = np.arange(len(self.img_list))
+        if anno_percent < 100:
+            random.Random(99).shuffle(indexes)
+            num_data = int(indexes.shape[0] * anno_percent / 100.0)
+            indexes = indexes[:num_data]
+            _img_list= copy.deepcopy(self.img_list)
+            _img_label= copy.deepcopy(self.img_label)
+            self.img_list = []
+            self.img_label = []
+            for i in indexes:
+                self.img_list.append(_img_list[i])
+                self.img_label.append(_img_label[i])
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, idx):
+        imagePath = self.img_list[idx]
+        maskPath = self.img_label[idx]
+
+        image = cv2.resize(cv2.imread(imagePath,cv2.IMREAD_COLOR),self.image_size, interpolation=cv2.INTER_AREA)
+        leftMaskData = cv2.resize(cv2.imread(maskPath[0],cv2.IMREAD_GRAYSCALE), self.image_size, interpolation=cv2.INTER_AREA)
+        rightMaskData = cv2.resize(cv2.imread(maskPath[1],cv2.IMREAD_GRAYSCALE), self.image_size, interpolation=cv2.INTER_AREA)
+        
+        mask = leftMaskData + rightMaskData
+        mask[mask > 0] = 255
+  
+        if self.augmentation:
+                augmented = self.augmentation(image=image, mask=mask)
+                image=augmented['image']
+                mask=augmented['mask']
+                image=np.array(image) / 255.
+                mask=np.array(mask) / 255.
+        else:
+            image = np.array(image) / 255.
+            mask = np.array(mask) / 255.
+        if self.normalization == "imagenet":
+            mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+            image = (image-mean)/std
+
+        image = image.transpose(2, 0, 1).astype('float32')
+        mask = np.expand_dims(mask,axis=0).astype('uint8')
+        return image, mask
+
+class JSRTClavicle(Dataset):
+
+    def __init__(self, images_path, file_path, augment, image_size=(224,224), few_shot=0, normalization=None):
+        self.augmentation = augment
+
+        self.img_list = []
+        self.img_label = []
+        self.image_size = image_size
+        self.normalization = normalization
+
+        with open(file_path, "r") as fileDescriptor:
+            line = fileDescriptor.readline().strip()
+            while line:
+                self.img_list.append(os.path.join(images_path + "/images", line+".IMG.png"))
+                self.img_label.append(
+                    (os.path.join(images_path+"/masks/left_clavicle_png/", line+".png"),(os.path.join(images_path+"/masks/right_clavicle_png/", line+".png")))
+                      )
+                line = fileDescriptor.readline().strip()
+        
+        indexes = np.arange(len(self.img_list))
+        if few_shot > 0:
+            random.Random(99).shuffle(indexes)
+            num_data = int(indexes.shape[0] * few_shot) if few_shot < 1 else int(few_shot)
+            indexes = indexes[:num_data]
+            _img_list= copy.deepcopy(self.img_list)
+            _img_label= copy.deepcopy(self.img_label)
+            self.img_list = []
+            self.img_label = []
+            for i in indexes:
+                self.img_list.append(_img_list[i])
+                self.img_label.append(_img_label[i])
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, idx):
+        imagePath = self.img_list[idx]
+        maskPath = self.img_label[idx]
+
+        image = cv2.resize(cv2.imread(imagePath,cv2.IMREAD_COLOR),self.image_size, interpolation=cv2.INTER_AREA)
+        leftMaskData = cv2.resize(cv2.imread(maskPath[0],cv2.IMREAD_GRAYSCALE), self.image_size, interpolation=cv2.INTER_AREA)
+        rightMaskData = cv2.resize(cv2.imread(maskPath[1],cv2.IMREAD_GRAYSCALE), self.image_size, interpolation=cv2.INTER_AREA)
+        
+        mask = leftMaskData + rightMaskData
+        mask[mask > 0] = 255
+  
+        if self.augmentation:
+                augmented = self.augmentation(image=image, mask=mask)
+                image=augmented['image']
+                mask=augmented['mask']
+                image=np.array(image) / 255.
+                mask=np.array(mask) / 255.
+        else:
+            image = np.array(image) / 255.
+            mask = np.array(mask) / 255.
+        if self.normalization == "imagenet":
+            mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+            image = (image-mean)/std
+
+        image = image.transpose(2, 0, 1).astype('float32')
+        mask = np.expand_dims(mask,axis=0).astype('uint8')
+        return image, mask
+
+class JSRTHeart(Dataset):
+
+    def __init__(self, images_path, file_path, augment, image_size=(224,224), anno_percent=100, normalization=None):
+        self.augmentation = augment
+
+        self.img_list = []
+        self.img_label = []
+        self.image_size = image_size
+        self.normalization = normalization
+
+        with open(file_path, "r") as fileDescriptor:
+            line = fileDescriptor.readline().strip()
+            while line:
+                self.img_list.append(os.path.join(images_path + "/images", line+".IMG.png"))
+                self.img_label.append(os.path.join(images_path+"/masks/heart_png/", line+".png"))
+                line = fileDescriptor.readline().strip()
+        
+        indexes = np.arange(len(self.img_list))
+        if anno_percent < 100:
+            random.Random(99).shuffle(indexes)
+            num_data = int(indexes.shape[0] * anno_percent / 100.0)
+            indexes = indexes[:num_data]
+            _img_list= copy.deepcopy(self.img_list)
+            _img_label= copy.deepcopy(self.img_label)
+            self.img_list = []
+            self.img_label = []
+            for i in indexes:
+                self.img_list.append(_img_list[i])
+                self.img_label.append(_img_label[i])
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, idx):
+        imagePath = self.img_list[idx]
+        maskPath = self.img_label[idx]
+
+        image = cv2.resize(cv2.imread(imagePath,cv2.IMREAD_COLOR),self.image_size, interpolation=cv2.INTER_AREA)
+        mask = cv2.resize(cv2.imread(maskPath,cv2.IMREAD_GRAYSCALE),self.image_size, interpolation=cv2.INTER_AREA)
+        
+        mask[mask > 0] = 255
+  
+        if self.augmentation:
+            augmented = self.augmentation(image=image, mask=mask)
+            image=augmented['image']
+            mask=augmented['mask']
+            image=np.array(image) / 255.
+            mask=np.array(mask) / 255.
+        else:
+            image = np.array(image) / 255.
+            mask = np.array(mask) / 255.
+        if self.normalization == "imagenet":
+            mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+            image = (image-mean)/std
+
+        image = image.transpose(2, 0, 1).astype('float32')
+        mask = np.expand_dims(mask,axis=0).astype('uint8')
+        return image, mask

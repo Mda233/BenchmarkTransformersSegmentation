@@ -1,4 +1,18 @@
-# Benchmarking and Boosting Transformers for Medical Image Classification
+## Extended from [Benchmark Transformers](jlianglab/BenchmarkTransformers) for segmentation tasks
+
+```bash
+python main_segmentation.py --data_set JSRTClavicle \
+--data_dir [PATH_TO_DATASET]/JSRT/All247images/ \
+--train_list dataset/jsrt/train.txt \
+--val_list dataset/jsrt/val.txt \
+--test_list dataset/jsrt/test.txt \
+--learning_rate 0.05 --epochs 500  --batch_size 32 --patience 50 \
+--arch upernet_swin  --init ark \
+--pretrained_weights [PATH_TO_MODEL]/ark6_teacher_ep200_swinb_projector1376_mlp.pth.tar 
+
+```
+
+## Benchmarking and Boosting Transformers for Medical Image Classification
 
 We benchmark how well existing transformer variants that use various (supervised and self-supervised) pre-training methods perform against CNNs on a variety of medical classification tasks. Furthermore, given the data-hungry nature of transformers and the annotation-deficiency challenge of medical imaging, we present a practical approach for bridging the domain gap between photographic and medical images by utilizing unlabeled large-scale in-domain data. 
 

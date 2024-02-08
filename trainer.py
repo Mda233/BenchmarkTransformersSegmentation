@@ -110,5 +110,26 @@ def test_classification(checkpoint, data_loader_test, device, args):
   return y_test, p_test
 
 
-
+def test_segmentation(model, data_loader_test, device):
+    model.eval()
+    with torch.no_grad():
+        y_test = None
+        p_test = None
+        for i, (samples, masks) in enumerate(data_loader_test):
+            with torch.cuda.amp.autocast():
+                samples = samples.float().to(device)
+                masks = masks.float().to(device)
+                outputs = model(samples)
+                outputs = torch.sigmoid(outputs)
+                if p_test is None and y_test is None:
+                    p_test = outputs
+                    y_test = masks
+                else:
+                    p_test = torch.cat((p_test, outputs), 0)
+                    y_test = torch.cat((y_test, masks), 0)
+                # torch.cuda.empty_cache()
+    
+    p_test = p_test.cpu().detach().numpy()
+    y_test = y_test.cpu().detach().numpy()
+    return y_test, p_test
 
