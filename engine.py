@@ -17,12 +17,12 @@ from sklearn.metrics import accuracy_score
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
-from trainer import train_one_epoch, evaluate, test_classification, test_segmentation, test_model
+from trainer import train_one_epoch, evaluate, test_classification, test_segmentation
 from utils import cosine_anneal_schedule, dice, mean_dice_coef, torch_dice_coef_loss, step_decay
 
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
-from timm.utils import NativeScaler, get_state_dict, ModelEma
+from timm.utils import NativeScaler
 
 sys.setrecursionlimit(40000)
 
