@@ -38,12 +38,10 @@ def get_args_parser():
                         help='path to latest checkpoint (default: none)')
     parser.add_argument('--learning_rate', help='learning rate', default=0.001, type=float)
     parser.add_argument('--mode', help='train|test', default='train')
-    #parser.add_argument('--model_name', help='encoder backbone', default='resnet50')
 
     parser.add_argument('--arch', help='segmentation network architecture', default='upernet_swin')
     parser.add_argument('--proxy_dir', help='path to pre-trained model', default=None)
     parser.add_argument('--device', help='cuda|cpu', default="cuda")
-    #parser.add_argument('--run', default=1, help='trial number', type=int)
     parser.add_argument('--num_trial', default=1, help='trial number', type=int)
     parser.add_argument("--start_index", help="the start model index", default=0, type=int)
     parser.add_argument('--init', help='Random |ImageNet |or other pre-trained methods', default='Random')

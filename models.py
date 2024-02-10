@@ -176,10 +176,6 @@ def build_segmentation_model(args):
         model = UperNet_swin(img_size=224, num_classes=args.num_class)
 
     if args.pretrained_weights is not None:
-        # if args.pretrained_weights.startswith('https'):
-        #     state_dict = load_state_dict_from_url(url=args.pretrained_weights, map_location='cpu')
-        # else:
-        #     state_dict = load_state_dict(args.pretrained_weights)
         checkpoint = torch.load(args.pretrained_weights, map_location='cpu')
         if args.init == "ark":
             state_dict = checkpoint
@@ -199,8 +195,9 @@ def build_segmentation_model(args):
                 del state_dict[k]
 
         load_swin_pretrained(state_dict, model.backbone)
-            
-        # msg = model.load_state_dict(state_dict, strict=False)
-        # print('Loaded with msg: {}'.format(msg))
+    return model
 
+def SegmentationNet(args):
+    if args.arch == "upernet_swin":
+        model = UperNet_swin(img_size=224, num_classes=args.num_class)
     return model

@@ -8,17 +8,15 @@ import numpy as np
 from optparse import OptionParser
 from tqdm import tqdm
 import copy
-
-
-from models import build_classification_model, save_checkpoint, build_segmentation_model
-from utils import metric_AUROC
 from sklearn.metrics import accuracy_score
 
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
+
+from models import *
 from trainer import train_one_epoch, evaluate, test_classification, test_segmentation
-from utils import cosine_anneal_schedule, dice, mean_dice_coef, torch_dice_coef_loss, step_decay
+from utils import metric_AUROC, dice, mean_dice_coef, torch_dice_coef_loss, step_decay
 
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
@@ -58,7 +56,7 @@ def classification_engine(args, model_path, output_path, diseases, dataset_train
       best_val_loss = init_loss
       patience_counter = 0
       save_model_path = os.path.join(model_path, experiment)
-      criterion = torch.nn.BCEWithLogitsLoss()
+      criterion = torch.nn.BCELoss()
       if args.data_set == "RSNAPneumonia":
         criterion = torch.nn.CrossEntropyLoss()
       model = build_classification_model(args)
@@ -289,7 +287,7 @@ def segmentation_engine(args, model_path, dataset_train, dataset_val, dataset_te
         state_dict = checkpoint["state_dict"]
         state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
         
-        model = build_segmentation_model(args)
+        model = SegmentationNet(args)
         model.load_state_dict(state_dict)
         if torch.cuda.device_count() > 1:
           model = torch.nn.DataParallel(model)
