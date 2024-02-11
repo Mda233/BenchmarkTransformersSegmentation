@@ -6,7 +6,7 @@ python main_segmentation.py --data_set JSRTClavicle \
 --train_list dataset/jsrt/train.txt \
 --val_list dataset/jsrt/val.txt \
 --test_list dataset/jsrt/test.txt \
---learning_rate 0.05 --epochs 500  --batch_size 32 --patience 50 \
+--learning_rate 0.2 --epochs 500  --batch_size 32 --patience 50 \
 --arch upernet_swin  --init ark \
 --pretrained_weights [PATH_TO_MODEL]/ark6_teacher_ep200_swinb_projector1376_mlp.pth.tar 
 
