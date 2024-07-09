@@ -67,17 +67,8 @@ def build_transform_classification(normalize, crop_size=224, resize=256, mode="t
 
 def build_transform_segmentation():
   AUGMENTATIONS_TRAIN = Compose([
-    # HorizontalFlip(p=0.5),
-    OneOf([
-        RandomBrightnessContrast(),
-        RandomGamma(),
-         ], p=0.3),
-    OneOf([
-        ElasticTransform(alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
-        GridDistortion(),
-        OpticalDistortion(distort_limit=2, shift_limit=0.5),
-        ], p=0.3),
-    RandomSizedCrop(min_max_height=(156, 224), height=224, width=224,p=0.25),
+    ShiftScaleRotate(rotate_limit=10),
+    RandomBrightnessContrast(),
     ToFloat(max_value=1)
     ],p=1)
 
